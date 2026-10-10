@@ -2,26 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 40 33% 97%;
+    --foreground: 28 20% 22%;
+
+    --card: 40 40% 99%;
+    --card-foreground: 28 20% 22%;
+
+    --popover: 40 40% 99%;
+    --popover-foreground: 28 20% 22%;
+
+    --primary: 36 42% 46%;
+    --primary-foreground: 40 45% 97%;
+
+    --secondary: 12 38% 74%;
+    --secondary-foreground: 28 25% 24%;
+
+    --muted: 38 22% 91%;
+    --muted-foreground: 30 12% 45%;
+
+    --accent: 12 45% 92%;
+    --accent-foreground: 28 25% 24%;
+
+    --destructive: 4 58% 48%;
+    --destructive-foreground: 40 45% 97%;
+
+    --border: 38 20% 86%;
+    --input: 38 20% 82%;
+    --ring: 36 42% 46%;
+
+    --gold: 38 48% 58%;
+    --gold-deep: 36 44% 38%;
+
+    --radius: 1rem;
+
+    --font-serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC",
+      ui-serif, Georgia, "Times New Roman", serif;
+    --font-sans: ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei",
+      "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* 大屏：深底，供投影使用 */
+  .screen-theme {
+    --background: 20 30% 8%;
+    --foreground: 40 45% 96%;
+    --muted: 20 20% 16%;
+    --muted-foreground: 38 20% 70%;
+    --border: 38 30% 28%;
+    --card: 20 26% 11%;
+    --gold: 42 70% 68%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    @apply font-serif;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .gold-gradient-text {
+    background-image: linear-gradient(
+      100deg,
+      hsl(38 55% 45%),
+      hsl(42 78% 66%) 40%,
+      hsl(38 55% 45%) 70%
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  /* 大屏中奖名单容器：窄滚动条，避免遮挡文字 */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(42 70% 68% / 0.5) transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background: hsl(42 70% 68% / 0.45);
+    border-radius: 9999px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* 来宾端在 iPhone 上不跟 home 条抢位置 */
+  .pb-safe {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+  }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }
