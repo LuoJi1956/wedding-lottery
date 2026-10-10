@@ -34,3 +34,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 本地数据库与口令
+.env
+prisma/dev.db
+prisma/dev.db-journal
+
+# 后台上传的图片（现场素材，不入库）
+public/uploads/*
+!public/uploads/.gitkeep
