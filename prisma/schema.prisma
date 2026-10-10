@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id              String   @id
+  name            String
+  subtitle        String   @default("")
+  status          String   @default("draft")
+  startAt         DateTime
+  endAt           DateTime
+  maxParticipants Int
+  /** 已发放到的顺序号，删除来宾也不会回收，保证编号不复用 */
+  lastTicketNo    Int      @default(0)
+  backgroundUrl   String?
+  allowRepeatWin  Boolean  @default(false)
+  prizes          Prize[]
+  participants    Participant[]
+  winners         Winner[]
+}
+
+model Prize {
+  id            String    @id @default(cuid())
+  eventId       String
+  name          String
+  iconUrl       String?
+  winnerCount   Int
+  drawBatchSize Int
+  sortOrder     Int       @default(0)
+  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  winners       Winner[]
+
+  @@unique([eventId, name])
+  @@index([eventId, sortOrder])
+}
+
+model Participant {
+  id        Int        @id @default(autoincrement())
+  eventId   String
+  ticketNo  Int
+  name      String
+  phone     String?
+  deviceId  String
+  joinedAt  DateTime   @default(now())
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  winners   Winner[]
+
+  @@unique([eventId, deviceId])
+  @@unique([eventId, ticketNo])
+  @@index([eventId, phone])
+}
+
+model Winner {
+  id            String       @id @default(cuid())
+  eventId       String
+  prizeId       String
+  participantId Int
+  drawnAt       DateTime     @default(now())
+  revokedAt     DateTime?
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  prize         Prize        @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  participant   Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, prizeId])
+  @@index([participantId])
+}
