@@ -364,8 +364,16 @@ function ScreenStage({
               </Button>
             )}
             {phase === "done" || phase === "revealing" ? (
-              <Button size="lg" variant="outline" onClick={() => { setPhase("idle"); setRevealed([]); clearTimers(); }}>
-                继续下一轮
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  setPhase("idle");
+                  setRevealed([]);
+                  clearTimers();
+                }}
+              >
+                {remaining > 0 ? "继续下一轮" : "该奖项已抽完"}
               </Button>
             ) : null}
           </div>
