@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { ADMIN_COOKIE, sessionCookieOptions, sessionCookieValue, verifyPassword } from "@/lib/server/admin-auth";
+import {
+  ADMIN_COOKIE,
+  isHttps,
+  sessionCookieOptions,
+  sessionCookieValue,
+  verifyPassword,
+} from "@/lib/server/admin-auth";
 import { fail, parseBody } from "@/lib/server/http";
 import { loginSchema } from "@/lib/validation";
 
@@ -15,6 +21,10 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ ok: true, data: {} });
-  response.cookies.set(ADMIN_COOKIE, sessionCookieValue(), sessionCookieOptions());
+  response.cookies.set(
+    ADMIN_COOKIE,
+    sessionCookieValue(),
+    sessionCookieOptions(isHttps(request)),
+  );
   return response;
 }

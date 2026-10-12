@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ADMIN_COOKIE,
+  isHttps,
   sessionCookieOptions,
   sessionCookieValue,
   verifyPassword,
@@ -49,17 +50,48 @@ describe("会话 Cookie", () => {
   });
 
   it("Cookie 为 httpOnly、根路径、30 天有效期", () => {
-    const options = sessionCookieOptions();
+    const options = sessionCookieOptions(false);
     expect(ADMIN_COOKIE).toBe("wedding_lottery_admin");
     expect(options.httpOnly).toBe(true);
+    expect(options.sameSite).toBe("lax");
     expect(options.path).toBe("/");
     expect(options.maxAge).toBe(30 * 24 * 3600);
   });
 
-  it("生产环境才给 Cookie 加 Secure 标记", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    expect(sessionCookieOptions().secure).toBe(true);
-    vi.stubEnv("NODE_ENV", "development");
-    expect(sessionCookieOptions().secure).toBe(false);
+  it("局域网 http 访问不加 Secure，否则浏览器会丢弃 Cookie", () => {
+    expect(sessionCookieOptions(false).secure).toBe(false);
+  });
+
+  it("https 部署时加上 Secure", () => {
+    expect(sessionCookieOptions(true).secure).toBe(true);
+  });
+});
+
+describe("判断请求是否走 https", () => {
+  function request(url: string, headers: Record<string, string> = {}) {
+    return new Request(url, { headers });
+  }
+
+  it("反向代理的 x-forwarded-proto 优先", () => {
+    expect(isHttps(request("http://localhost:3000/api/admin/login", { "x-forwarded-proto": "https" }))).toBe(
+      true
+    );
+    expect(
+      isHttps(request("https://example.com/api/admin/login", { "x-forwarded-proto": "http, https" })),
+    ).toBe(false);
+  });
+
+  it("没有代理头时看 origin / referer", () => {
+    expect(isHttps(request("http://localhost/api/admin/login", { origin: "https://wedding.com" }))).toBe(
+      true
+    );
+    expect(
+      isHttps(request("http://localhost/api/admin/login", { referer: "http://192.168.31.10:3000/admin" })),
+    ).toBe(false);
+  });
+
+  it("代理头和业务头都没有时回落到请求自身协议", () => {
+    expect(isHttps(request("https://wedding.com/api/admin/login"))).toBe(true);
+    expect(isHttps(request("http://192.168.31.10:3000/api/admin/login"))).toBe(false);
   });
 });

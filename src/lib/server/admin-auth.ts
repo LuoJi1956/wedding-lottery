@@ -22,11 +22,23 @@ export function sessionCookieValue(): string {
   return createHash("sha256").update(process.env.ADMIN_PASSWORD ?? "").digest("hex");
 }
 
-export function sessionCookieOptions() {
+/**
+ * 是否走 https 只能看请求本身：现场用局域网 http 访问时给 Cookie 打 Secure，
+ * 浏览器会直接丢弃它，后台就永远登录不上；反过来公网 https 部署又必须带上。
+ */
+export function isHttps(request: Request): boolean {
+  const forwarded = request.headers.get("x-forwarded-proto");
+  if (forwarded) return forwarded.split(",")[0]?.trim() === "https";
+  const origin = request.headers.get("origin") ?? request.headers.get("referer");
+  if (origin) return origin.startsWith("https://");
+  return new URL(request.url).protocol === "https:";
+}
+
+export function sessionCookieOptions(secure: boolean) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   };
