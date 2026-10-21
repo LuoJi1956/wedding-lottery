@@ -172,16 +172,17 @@ npm run db:use:sqlite    # 切回 SQLite（本地/现场）
 
 1. supabase.com 新建项目，Region 选离现场/观众近的（亚太选 `Southeast Asia (Singapore)`），记下自己设的**数据库密码**。
 2. Settings → Database → Connection string，两条都要拷：
-   - **Direct connection**（端口 5432）：只在本地建表时用；
-   - **Pooler connection**（端口 6000，transaction mode）：线上运行时用，结尾补 `?pgbouncer=true&connection_limit=1`。
-3. 本地临时把 `.env` 的 `DATABASE_URL` 换成 Direct 那条，然后：
+   - **Direct connection**（`db.项目ref.supabase.co:5432`）：本地建表用，DDL 最稳；
+   - **Session pooler**（端口 5432）：没有 Direct 权限时的建表备用串；
+   - **Transaction pooler**（端口 6543）：线上运行时用，结尾补 `?pgbouncer=true&connection_limit=1`。
+3. 本地临时把 `.env` 的 `DATABASE_URL` 换成 Direct（或 Session）那条，然后：
 
    ```bash
    npm run db:use:pg      # 建表
    npm run db:seed        # 可选：灌演示数据，注意它连的是 .env 里当前指向的库
    ```
 
-   建完把 `.env` 改回 Pooler 那条（或直接删掉本地 `.env` 继续跑现场模式）。
+   建完把 `.env` 改回 `file:./dev.db`（现场模式）或 Transaction 那条，并跑 `npm run db:use:sqlite` 把客户端切回来。
 
 #### B-2 连 Netlify
 
@@ -200,6 +201,7 @@ npm run db:use:sqlite    # 切回 SQLite（本地/现场）
 - **图片上传不可用**：只读文件系统，`/api/admin/upload` 会返回中文提示「当前部署环境的磁盘只读…」，请在活动背景图、奖项图标里填 `http(s)` 外链（图床、网盘直链都行）。
 - **Supabase 免费项目会休眠**：约 7 天无活动就自动暂停，需去控制台手动 *Restore project*。活动前一天务必确认库是 `Active`，否则来宾扫码全报错。
 - **`netlify.app` / `supabase.co` 在国内访问不稳定**：这是公网演示最大的风险。正式活动前用**现场那台电脑 + 观众同款手机网络**（4G/5G 与酒店 Wi-Fi 各测一次）真机跑一遍报名 → 开奖。不稳就走方案 A。
+- **Netlify 的密钥检测会让构建失败**：Smart detection 会扫仓库与构建产物，一旦认为某处像密钥就直接 `Building → Failed`（deploy 列表上会有 *Exposed secrets detected*，日志几乎为空）。本项目因此**不在 `.env.example` 里写「协议头 + 用户:密码@主机」形态的完整连接串**，只写结构说明。误报可在 *Project configuration → Environment variables* 加 `SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES=<被误报的字符串>` 白名单，或按文档用 `SECRETS_SCAN_OMIT_PATHS` / `SECRETS_SCAN_OMIT_KEYS`，不建议整体关掉（`SECRETS_SCAN_SMART_DETECTION_ENABLED=false`）。
 - 口令是明文环境变量，公网站点等于把后台暴露在公网上；演示期不要用真实宾客名单，演示完在 Netlify 里删站点或直接改 `ADMIN_PASSWORD`。
 - Cookie 的 `Secure` 标记按**这次请求是不是 https** 判断（看 `x-forwarded-proto`，其次 origin/referer 与请求协议），不是按 `NODE_ENV`：Netlify/Vercel 走 https 会自动带上；现场 `http://IP:3000` 不加，否则浏览器会丢掉登录 Cookie、后台永远进不去。
 - 时间显示与录入固定按 `Asia/Shanghai` 换算（`src/lib/time.ts`），云端函数跑在 UTC 也不会差 8 小时；`netlify.toml` 里额外设了 `TZ` 只是兜底。
@@ -251,6 +253,7 @@ src/lib/mock/               已删除，全站走服务端数据
 | 线上上传图片返回「磁盘只读」 | 正常降级。Serverless 磁盘不可写，改填 http(s) 图片外链 |
 | 本地 `npm run dev` 突然连不上库 / 报 SSL 连接错误 | 之前跑过 `npm run db:use:pg`，客户端是 Postgres 版。`npm run db:use:sqlite` 切回来再重启 |
 | 忘记后台口令 | 口令只存在 `.env` 的 `ADMIN_PASSWORD` 里、不落库，直接改这一行后重启服务即可；线上到 Netlify 站点的环境变量里改并重新部署 |
+| Netlify 构建失败且日志几乎为空、deploy 上有 *Exposed secrets detected* | 密钥检测（smart detection）拦下了这次构建。按 deploy log 指出的位置把疑似密钥的字符串改掉或加白名单，再 *Retry deploy*，见方案 B-3 |
 | 想回到演示初始状态 | `npm run db:reset`（会清掉真实报名数据，活动当天慎用） |
 | 换一台电脑继续用 | 整场活动数据都只在 `prisma/dev.db` 一个文件里，拷贝它即可迁移 |
 
