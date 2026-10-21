@@ -4,6 +4,9 @@
 # 构建命令先生成 Postgres 版 Prisma 客户端，再打包：默认的 postinstall 生成的是 SQLite 客户端，
 # 云端跑 Postgres 时必须覆盖一次，否则函数运行时会报「找不到 query engine」。
 # 建表不放在构建里，请本地执行 npm run db:use:pg。
+#
+# 原第 18 行的 SECRETS_SCAN_OMIT_KEYS 已删除：GitHub 的密钥扫描/推送保护不读 netlify.toml，
+# 需要时在仓库 Settings → Code security and analysis → Push protection 里设置。
 
 [build]
   command = "npm run db:generate:pg && npm run build"
@@ -11,5 +14,5 @@
 [build.environment]
   NEXT_TELEMETRY_DISABLED = "1"
   # 云端函数默认跑在 UTC。页面时间显示已在 src/lib/time.ts 里写死 Asia/Shanghai，
-  # 这里再设一次本机时区，兜住第三方依赖 Date 本地方法的代码。
+  # 这里再设一次本机时区，兜住其它依赖 Date 本地方法的第三方代码。
   TZ = "Asia/Shanghai"
