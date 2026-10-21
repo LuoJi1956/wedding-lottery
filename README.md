@@ -8,7 +8,7 @@
 | 后台 | `/admin` | 活动配置、奖项设置、参与名单、中奖名单、参与二维码 |
 | 大屏 | `/screen` | 1920×1080 投影，开始/停止开奖动画并逐个揭晓中奖者 |
 
-技术栈：Next.js 14 App Router + TypeScript、Tailwind + shadcn 风格组件、Prisma 6 + SQLite、zod 4、`qrcode`。
+技术栈：Next.js 14 App Router + TypeScript、Tailwind + shadcn 风格组件、Prisma 6 + SQLite（可切 Postgres）、zod 4、`qrcode`。
 抽奖随机与去重全部在服务端完成，前端只负责滚动姓名的视觉动画。
 
 ---
@@ -31,17 +31,19 @@ npm run dev              # http://localhost:3000
 
 | 变量 | 说明 |
 | --- | --- |
-| `DATABASE_URL` | SQLite 路径，`file:./dev.db` 是**相对 `prisma/` 目录**的路径 |
+| `DATABASE_URL` | 默认 `file:./dev.db`，这是**相对 `prisma/` 目录**的路径；云端部署换成 Postgres 连接串，见方案 B |
 | `ADMIN_PASSWORD` | 后台访问口令，至少 4 位。未配置时所有后台写接口一律拒绝 |
 
 ### 数据库命令
 
 ```bash
-npm run db:push          # 按 schema 同步表结构
+npm run db:push          # 按 schema 同步表结构（SQLite）
 npm run db:seed          # 重灌演示数据（先清空该活动，结果可预期）
-npm run db:reset         # 删库重建 + seed，想回到初始状态就用它
+npm run db:reset         # 删库重建 + seed，想回到初始状态就用它（只适用 SQLite）
 npm run db:studio        # Prisma Studio 可视化查表
 ```
+
+云端 Postgres 的切换命令见 [4. 部署 · 方案 B](#方案-b部署到-netlify--supabase免费额度够小范围演示)。
 
 `.env` 和 `prisma/dev.db` 已在 `.gitignore` 中，不会提交。
 
@@ -106,7 +108,7 @@ npm run db:studio        # Prisma Studio 可视化查表
 # Windows
 ipconfig            # 找“无线局域网适配器 WLAN”的 IPv4 地址，例如 192.168.1.23
 # macOS
-ipconfig getifaddr en0
+ifconfig getifaddr en0
 ```
 
 先确认二维码里的地址是 `http://192.168.1.23:3000/join?e=...` 再生成——**用 IP 打开后台的 `/admin/qrcode`**，二维码始终按当前地址生成，用 `localhost` 打开就只能本机扫。
@@ -145,41 +147,62 @@ npm start
 
 活动前一天做一次完整彩排：手机连现场 Wi-Fi 扫码报名 → 后台看得到 → 大屏能开奖 → 撤销后大屏跟随。
 
-### 方案 B：部署到 Vercel（需要先把数据库换成 Postgres）
+### 方案 B：部署到 Netlify + Supabase（免费额度够小范围演示）
 
-Vercel 的 Serverless 运行时文件系统只读且临时，`file:./dev.db` 上的写入**会在下次请求/冷启动时丢失**，所以本地 SQLite 不能直接上线。要公网部署请改成任意 Postgres（Vercel Postgres / Neon / Supabase 都行）：
+云端文件系统只读且临时，`file:./dev.db` 的写入会在冷启动后丢失，所以公网部署必须把数据库换成 Postgres。
+本项目同时保留两套 Prisma schema，切来切去不用改代码：
 
-1. 改 `prisma/schema.prisma` 里 `datasource db` 块的 `provider`（当前是 `"sqlite"`）：
+| 文件 | provider | 用途 |
+| --- | --- | --- |
+| `prisma/schema.prisma` | sqlite | 默认，本地与方案 A 现场模式 |
+| `prisma/schema.postgres.prisma` | postgresql | 云端部署，`engineType = "library"` + `rhel-openssl-3.0.x` 目标 |
 
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
+客户端只会是其中一个版本，用脚本切换：
 
-   业务代码不需要改动，`.env.example` 里也留了这条说明。
+```bash
+npm run db:use:pg        # 生成 Postgres 客户端 + 按 schema 建表（云端）
+npm run db:push:pg       # 只建表，不重新生成客户端
+npm run db:use:sqlite    # 切回 SQLite（本地/现场）
+```
 
-2. 把 `DATABASE_URL` 换成云库连接串（形如 `postgresql://user:pass@host/db?ssl-mode=required`），本地 `.env` 与 Vercel 环境变量都要配。
+> 切到 Postgres 后，本地 `npm run dev` 也会连云库；回到现场模式记得再跑一次 `npm run db:use:sqlite`。
+> `npm run build` 用的是**当前已生成的那套客户端**，`netlify.toml` 里的构建命令已写成 `npm run db:generate:pg && npm run build`。
 
-3. 建表并灌数据（本地执行，指向云库）：
+#### B-1 建 Supabase 项目
+
+1. supabase.com 新建项目，Region 选离现场/观众近的（亚太选 `Southeast Asia (Singapore)`），记下自己设的**数据库密码**。
+2. Settings → Database → Connection string，两条都要拷：
+   - **Direct connection**（端口 5432）：只在本地建表时用；
+   - **Pooler connection**（端口 6000，transaction mode）：线上运行时用，结尾补 `?pgbouncer=true&connection_limit=1`。
+3. 本地临时把 `.env` 的 `DATABASE_URL` 换成 Direct 那条，然后：
 
    ```bash
-   npx prisma db push
-   npm run db:seed
+   npm run db:use:pg      # 建表
+   npm run db:seed        # 可选：灌演示数据，注意它连的是 .env 里当前指向的库
    ```
 
-4. Vercel 项目设置：
-   - Framework Preset：Next.js；Build Command `npm run build`；Output Directory `.next`；Install Command `npm ci`。
-   - Environment Variables 添加 `DATABASE_URL`、`ADMIN_PASSWORD`（生产环境务必用强口令）。
-   - `postinstall: prisma generate` 已在 `package.json` 里，部署时会自动生成客户端；`next.config.mjs` 已把 `@prisma/client` 配为外部包（Next 14 写法：`experimental.serverComponentsExternalPackages`）。
+   建完把 `.env` 改回 Pooler 那条（或直接删掉本地 `.env` 继续跑现场模式）。
 
-5. 部署完成后到 `/admin/qrcode` 用**正式域名**重新下载二维码，之前的局域网二维码全部作废。
+#### B-2 连 Netlify
 
-上线前注意：
-- 来宾量不大（几百人）时 Serverless 完全够用，但开奖接口和名单写入都走云库，现场务必保证有稳定的公网出口。
-- Cookie 的 `Secure` 标记按**这次请求是不是 https** 判断（看 `x-forwarded-proto`，其次 origin/referer 与请求协议），不是按 `NODE_ENV` 判断：Vercel 走 https 会自动带上；现场用 `http://IP:3000` 时不加，否则浏览器会直接丢掉登录 Cookie、后台永远进不去。
-- 建议把活动数据备份：换云库后 `prisma studio` 或 `psql` 导出即可。
+1. 代码推到 GitHub 仓库，Netlify → *Add new site* → *Import an existing project* → 选该仓库。
+2. 构建配置全部读 `netlify.toml`（Build command `npm run db:generate:pg && npm run build`，Publish directory 由 Next.js 运行时插件处理），一般不需要手填。
+   第一次构建若提示找不到 Next.js 运行时，在 *Site configuration → Build & deploy → Continuous deployment → Build options → Optimizations* 里把 Framework 切成 **Next.js**，或 `npm i -D @netlify/plugin-nextjs` 并在 `netlify.toml` 里加 `[[plugins]] package = "@netlify/plugin-nextjs"`。
+3. *Site configuration → Environment variables* 添加两项（**Internal** 类型即可）：
+   - `DATABASE_URL` = Pooler 连接串（带 `pgbouncer=true&connection_limit=1`）
+   - `ADMIN_PASSWORD` = 后台口令
+   这两项是构建时就需要的，改完记得 *Trigger deploy* 重新构建。
+4. 部署完成后打开 `https://你的站点.netlify.app/admin/qrcode`，**用正式域名重新下载二维码**，之前的局域网二维码全部作废。
+   Supabase 的表里如果已经有 seed 数据，扫码报名就直接写进云库，多台设备共享同一份名单。
+
+#### B-3 云端部署的已知限制
+
+- **图片上传不可用**：只读文件系统，`/api/admin/upload` 会返回中文提示「当前部署环境的磁盘只读…」，请在活动背景图、奖项图标里填 `http(s)` 外链（图床、网盘直链都行）。
+- **Supabase 免费项目会休眠**：约 7 天无活动就自动暂停，需去控制台手动 *Restore project*。活动前一天务必确认库是 `Active`，否则来宾扫码全报错。
+- **`netlify.app` / `supabase.co` 在国内访问不稳定**：这是公网演示最大的风险。正式活动前用**现场那台电脑 + 观众同款手机网络**（4G/5G 与酒店 Wi-Fi 各测一次）真机跑一遍报名 → 开奖。不稳就走方案 A。
+- 口令是明文环境变量，公网站点等于把后台暴露在公网上；演示期不要用真实宾客名单，演示完在 Netlify 里删站点或直接改 `ADMIN_PASSWORD`。
+- Cookie 的 `Secure` 标记按**这次请求是不是 https** 判断（看 `x-forwarded-proto`，其次 origin/referer 与请求协议），不是按 `NODE_ENV`：Netlify/Vercel 走 https 会自动带上；现场 `http://IP:3000` 不加，否则浏览器会丢掉登录 Cookie、后台永远进不去。
+- 时间显示与录入固定按 `Asia/Shanghai` 换算（`src/lib/time.ts`），云端函数跑在 UTC 也不会差 8 小时；`netlify.toml` 里额外设了 `TZ` 只是兜底。
 
 ### 方案 C：自己的服务器 / 内网主机
 
@@ -196,11 +219,14 @@ npm ci && npm run build && PORT=3000 npm start
 ## 5. 结构速览
 
 ```
-prisma/schema.prisma        Event / Prize / Participant / Winner 四张表
+prisma/schema.prisma        Event / Prize / Participant / Winner 四张表（SQLite，默认）
+prisma/schema.postgres.prisma  同一套字段的 Postgres 版，云端部署用，改表时两份都要改
 prisma/seed.ts              演示数据
+netlify.toml                云端构建命令与运行时环境变量
 src/app/                    page 路由：/ 、/join、/admin(+/login)、/screen
 src/app/api/                snapshot、join、draw、admin/{login,logout,event,prizes,participants,winners}
 src/lib/validation.ts       zod 统一校验与中文错误文案（所有接口共用）
+src/lib/time.ts             固定按 Asia/Shanghai 格式化/换算时间，服务器时区无关
 src/lib/server/             prisma 单例、后台鉴权、响应封装、票号发号、序列化
 src/lib/lottery.ts          部分 Fisher-Yates 抽取，随机源由调用方注入（便于测试）
 src/lib/derive.ts           剩余名额、本轮人数、已中奖集合等纯选择器
@@ -221,7 +247,10 @@ src/lib/mock/               已删除，全站走服务端数据
 | 大屏提示「所有来宾都已中奖，无法继续抽取」 | 默认不可重复中奖且奖池已抽干。要么在后台加大名额，要么打开「允许重复中奖」 |
 | 某奖项按钮显示「剩 0 名」且开始按钮灰色 | 名额已抽完。若其中有误抽，去中奖名单撤销，名额会回到奖池（最多 3 秒反映到大屏） |
 | 撤销后大屏没立刻变 | 大屏每 3 秒拉一次 `/api/snapshot`，等一个轮询周期即可；已揭晓名单会自动去掉被撤销的那位 |
-| 忘记后台口令 | 口令只存在 `.env` 的 `ADMIN_PASSWORD` 里、不落库，直接改这一行后重启服务即可 |
+| 云端接口报 `P2021: table ... does not exist` | 还没对云库建表。本地把 `DATABASE_URL` 指向 Supabase 的 Direct 连接串，跑 `npm run db:use:pg` |
+| 线上上传图片返回「磁盘只读」 | 正常降级。Serverless 磁盘不可写，改填 http(s) 图片外链 |
+| 本地 `npm run dev` 突然连不上库 / 报 SSL 连接错误 | 之前跑过 `npm run db:use:pg`，客户端是 Postgres 版。`npm run db:use:sqlite` 切回来再重启 |
+| 忘记后台口令 | 口令只存在 `.env` 的 `ADMIN_PASSWORD` 里、不落库，直接改这一行后重启服务即可；线上到 Netlify 站点的环境变量里改并重新部署 |
 | 想回到演示初始状态 | `npm run db:reset`（会清掉真实报名数据，活动当天慎用） |
 | 换一台电脑继续用 | 整场活动数据都只在 `prisma/dev.db` 一个文件里，拷贝它即可迁移 |
 
@@ -232,5 +261,5 @@ src/lib/mock/               已删除，全站走服务端数据
 - **微信身份**：普通 H5 扫码拿不到微信 openid（需要认证服务号网页授权），当前用浏览器设备指纹 + 手机号防重。日后接入服务号，只需替换 `src/lib/ticket.ts` 里的 `readDeviceId()` 返回 openid，其余逻辑不变。
 - **实时性**：大屏与后台的同步靠 3 秒轮询，够用但没有秒级推送；换 Supabase Realtime 或 WebSocket 需要额外的服务端能力。
 - **单活动**：系统只服务一场活动（`evt_thanksbanquet`），没有多租户、活动列表与账号体系，这是刻意的取舍。
-- **背景图与奖项图标**支持在后台直接上传（PNG/JPG/WebP/GIF，单张 3MB 以内），文件写到服务的 `public/uploads/`，只走本地磁盘：Serverless（Vercel）文件系统只读，请改填外链图片地址；也没有接对象存储做 CDN。
+- **背景图与奖项图标**支持在后台直接上传（PNG/JPG/WebP/GIF，单张 3MB 以内），文件写到服务的 `public/uploads/`，只走本地磁盘：Netlify / Vercel 等 Serverless 环境磁盘只读，上传接口会明确返回「当前部署环境的磁盘只读，请改填 http(s) 开头的图片外链」；也没有接对象存储做 CDN。
 - 中奖只做后台标注等级与时间，不做现场核销流程。

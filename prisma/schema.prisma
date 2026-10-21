@@ -1,3 +1,7 @@
+// 默认数据模型：本地 SQLite，现场笔记本离线也能开奖。
+// 部署到 Netlify/Vercel 等 Serverless 平台要换成 PostgreSQL：prisma/schema.postgres.prisma。
+// 两份模型字段必须一致，改一处要改两处。切换命令见 package.json 的 db:use:pg / db:use:sqlite。
+
 generator client {
   provider = "prisma-client-js"
 }

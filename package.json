@@ -11,6 +11,11 @@
     "test:watch": "vitest",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
+    "db:generate:sqlite": "prisma generate",
+    "db:generate:pg": "prisma generate --schema prisma/schema.postgres.prisma",
+    "db:push:pg": "prisma db push --schema prisma/schema.postgres.prisma",
+    "db:use:pg": "npm run db:generate:pg && npm run db:push:pg",
+    "db:use:sqlite": "npm run db:generate:sqlite && npm run db:push",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
     "db:studio": "prisma studio"

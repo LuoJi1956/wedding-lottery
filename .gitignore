@@ -24,6 +24,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
+
+# 彩排/临时脚本产物
+tmp-*
 
 # local env files
 .env*.local

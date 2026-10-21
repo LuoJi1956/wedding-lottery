@@ -1,0 +1,15 @@
+# Netlify 部署配置。只描述构建命令与运行时环境变量，
+# Next.js 的运行时支持由 Netlify 自动检测（或手动添加 @netlify/plugin-nextjs 插件）。
+#
+# 构建命令先生成 Postgres 版 Prisma 客户端，再打包：默认的 postinstall 生成的是 SQLite 客户端，
+# 云端跑 Postgres 时必须覆盖一次，否则函数运行时会报「找不到 query engine」。
+# 建表不放在构建里，请本地执行 npm run db:use:pg。
+
+[build]
+  command = "npm run db:generate:pg && npm run build"
+
+[build.environment]
+  NEXT_TELEMETRY_DISABLED = "1"
+  # 云端函数默认跑在 UTC。页面时间显示已在 src/lib/time.ts 里写死 Asia/Shanghai，
+  # 这里再设一次本机时区，兜住第三方依赖 Date 本地方法的代码。
+  TZ = "Asia/Shanghai"

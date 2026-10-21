@@ -43,7 +43,12 @@ export async function POST(request: Request) {
   try {
     await mkdir(UPLOAD_DIR, { recursive: true });
     await writeFile(path.join(UPLOAD_DIR, name), Buffer.from(await file.arrayBuffer()));
-  } catch {
+  } catch (error) {
+    // Netlify/Vercel 的函数目录是只读的，这里不报成“磁盘有问题”，直接指路外链
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EROFS" || code === "EACCES" || code === "EPERM") {
+      return fail("当前部署环境的磁盘只读，无法保存上传的图片，请改填 http(s) 开头的图片外链", 503);
+    }
     return fail("图片保存失败，请确认服务所在磁盘可写", 500);
   }
 

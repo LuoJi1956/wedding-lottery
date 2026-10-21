@@ -1,0 +1,78 @@
+// 公网部署用的数据模型（PostgreSQL，配 Supabase / Vercel Postgres / 自建 PG）。
+// 本地与现场局域网用的是 prisma/schema.prisma（SQLite），两份模型字段必须一致，改一处要改两处。
+// 切换：npm run db:use:pg（连云库） / npm run db:use:sqlite（回到本地文件）。
+
+generator client {
+  provider      = "prisma-client-js"
+  // Serverless 只读文件系统 + 冷启动要求：库引擎随包走，省掉 50MB 的二进制文件
+  engineType    = "library"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id              String   @id
+  name            String
+  subtitle        String   @default("")
+  status          String   @default("draft")
+  startAt         DateTime
+  endAt           DateTime
+  maxParticipants Int
+  /** 已发放到的顺序号，删除来宾也不会回收，保证编号不复用 */
+  lastTicketNo    Int      @default(0)
+  backgroundUrl   String?
+  allowRepeatWin  Boolean  @default(false)
+  prizes          Prize[]
+  participants    Participant[]
+  winners         Winner[]
+}
+
+model Prize {
+  id            String    @id @default(cuid())
+  eventId       String
+  name          String
+  iconUrl       String?
+  winnerCount   Int
+  drawBatchSize Int
+  sortOrder     Int       @default(0)
+  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  winners       Winner[]
+
+  @@unique([eventId, name])
+  @@index([eventId, sortOrder])
+}
+
+model Participant {
+  id        Int        @id @default(autoincrement())
+  eventId   String
+  ticketNo  Int
+  name      String
+  phone     String?
+  deviceId  String
+  joinedAt  DateTime   @default(now())
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  winners   Winner[]
+
+  @@unique([eventId, deviceId])
+  @@unique([eventId, ticketNo])
+  @@index([eventId, phone])
+}
+
+model Winner {
+  id            String       @id @default(cuid())
+  eventId       String
+  prizeId       String
+  participantId Int
+  drawnAt       DateTime     @default(now())
+  revokedAt     DateTime?
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  prize         Prize        @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  participant   Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, prizeId])
+  @@index([participantId])
+}
