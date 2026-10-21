@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, maskPhone, toCsv } from "@/lib/utils";
+import { maskPhone, toCsv } from "@/lib/utils";
 import { formatTicketNo } from "@/lib/format";
 
 describe("抽奖券编号", () => {
@@ -25,17 +25,6 @@ describe("手机号掩码", () => {
 
   it("异常长度原样返回，不会吞掉数据", () => {
     expect(maskPhone("138000011")).toBe("138000011");
-  });
-});
-
-describe("日期展示", () => {
-  it("非法时间显示占位符而不是 Invalid Date", () => {
-    expect(formatDateTime("not-a-date")).toBe("-");
-    expect(formatDateTime("")).toBe("-");
-  });
-
-  it("合法时间输出 YYYY-MM-DD HH:mm", () => {
-    expect(formatDateTime("2026-10-01T09:30:00.000Z")).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   });
 });
 

@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { joinGate } from "@/lib/join-gate";
 import { formatTicketNo } from "@/lib/format";
 import { maskPhone } from "@/lib/utils";
+import { formatClock } from "@/lib/time";
 import { readDeviceId, saveTicket, loadTicket } from "@/lib/ticket";
 import { useSnapshot } from "@/lib/use-snapshot";
 import { PHONE_REGEX } from "@/lib/validation";
@@ -191,7 +192,7 @@ function TicketView({ participant, eventName }: { participant: Participant; even
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">参与时间</dt>
-                <dd>{new Date(participant.joinedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</dd>
+                <dd>{formatClock(participant.joinedAt)}</dd>
               </div>
             </dl>
           </div>

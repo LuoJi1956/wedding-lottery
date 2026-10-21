@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { SnapshotGate } from "@/components/snapshot-gate";
 import { DEFAULT_EVENT_ID } from "@/lib/constants";
 import { eventSchema, firstIssue } from "@/lib/validation";
+import { fromWallClockInput, toWallClockInput } from "@/lib/time";
 import type { EventStatus, Snapshot } from "@/lib/types";
 
 const statusLabel: Record<EventStatus, string> = {
@@ -21,13 +22,6 @@ const statusLabel: Record<EventStatus, string> = {
   active: "进行中",
   ended: "已结束",
 };
-
-function toLocalInput(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default function AdminEventPage() {
   return (
@@ -43,8 +37,8 @@ function EventForm({ snapshot, refresh }: { snapshot: Snapshot; refresh: () => P
     name: event.name,
     subtitle: event.subtitle,
     status: event.status,
-    startAt: toLocalInput(event.startAt),
-    endAt: toLocalInput(event.endAt),
+    startAt: toWallClockInput(event.startAt),
+    endAt: toWallClockInput(event.endAt),
     maxParticipants: String(event.maxParticipants),
     backgroundUrl: event.backgroundUrl ?? "",
     allowRepeatWin: event.allowRepeatWin,
@@ -79,8 +73,8 @@ function EventForm({ snapshot, refresh }: { snapshot: Snapshot; refresh: () => P
     setSaving(true);
     const res = await api.saveEvent({
       ...parsed.data,
-      startAt: new Date(parsed.data.startAt).toISOString(),
-      endAt: new Date(parsed.data.endAt).toISOString(),
+      startAt: fromWallClockInput(parsed.data.startAt),
+      endAt: fromWallClockInput(parsed.data.endAt),
     });
     setSaving(false);
     if (!res.ok) {
@@ -255,8 +249,8 @@ function EventForm({ snapshot, refresh }: { snapshot: Snapshot; refresh: () => P
                   name: event.name,
                   subtitle: event.subtitle,
                   status: event.status,
-                  startAt: toLocalInput(event.startAt),
-                  endAt: toLocalInput(event.endAt),
+                  startAt: toWallClockInput(event.startAt),
+                  endAt: toWallClockInput(event.endAt),
                   maxParticipants: String(event.maxParticipants),
                   backgroundUrl: event.backgroundUrl ?? "",
                   allowRepeatWin: event.allowRepeatWin,

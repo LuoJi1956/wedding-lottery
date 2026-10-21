@@ -12,7 +12,8 @@ import { api } from "@/lib/api";
 import { SnapshotGate } from "@/components/snapshot-gate";
 import { DEFAULT_EVENT_ID } from "@/lib/constants";
 import { formatTicketNo } from "@/lib/format";
-import { downloadCsv, formatDateTime, maskPhone, toCsv } from "@/lib/utils";
+import { downloadCsv, maskPhone, toCsv } from "@/lib/utils";
+import { formatDateTime } from "@/lib/time";
 import type { Participant, Prize, Snapshot, Winner } from "@/lib/types";
 
 export default function AdminWinnersPage() {

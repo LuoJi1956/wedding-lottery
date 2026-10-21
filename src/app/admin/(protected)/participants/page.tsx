@@ -15,7 +15,8 @@ import { api } from "@/lib/api";
 import { DEFAULT_EVENT_ID } from "@/lib/constants";
 import { evaluatedWinners } from "@/lib/derive";
 import { formatTicketNo } from "@/lib/format";
-import { downloadCsv, formatDateTime, maskPhone, toCsv } from "@/lib/utils";
+import { downloadCsv, maskPhone, toCsv } from "@/lib/utils";
+import { formatDateTime } from "@/lib/time";
 import { PHONE_REGEX } from "@/lib/validation";
 import type { Snapshot } from "@/lib/types";
 

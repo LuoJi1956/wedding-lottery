@@ -1,4 +1,5 @@
 import type { EventConfig, JoinGate } from "@/lib/types";
+import { formatClock } from "@/lib/time";
 
 /**
  * 报名闸门。服务端在写入前调用它做权威判断，
@@ -16,10 +17,7 @@ export function joinGate(event: EventConfig, participantCount: number): JoinGate
     return {
       allowed: false,
       reason: "not_started",
-      message: `活动将于 ${new Date(event.startAt).toLocaleTimeString("zh-CN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })} 开始`,
+      message: `活动将于 ${formatClock(event.startAt)} 开始`,
     };
   }
   if (participantCount >= event.maxParticipants) {
